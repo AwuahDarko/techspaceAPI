@@ -10,14 +10,14 @@ import jwt
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
 
-# app.config.from_object(os.environ['APP_SETTINGS'])
-pg_user = "darko"
-pg_pwd = "12345"
-pg_port = "5432"
-app.config['SECRET_KEY'] = '&&!^@(##)**09864345123'
-app.config["SQLALCHEMY_DATABASE_URI"] = \
-    "postgresql://{username}:{password}@localhost:{port}/techspace".format(username=pg_user, password=pg_pwd,
-                                                                           port=pg_port)
+app.config.from_object(os.environ['APP_SETTINGS'])
+# pg_user = "darko"
+# pg_pwd = "12345"
+# pg_port = "5432"
+# app.config['SECRET_KEY'] = '&&!^@(##)**09864345123'
+# app.config["SQLALCHEMY_DATABASE_URI"] = \
+#     "postgresql://{username}:{password}@localhost:{port}/techspace".format(username=pg_user, password=pg_pwd,
+#                                                                            port=pg_port)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
