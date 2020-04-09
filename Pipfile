@@ -15,6 +15,7 @@ flask-migrate = "*"
 psycopg2-binary = "*"
 flask-bcrypt = "*"
 pyjwt = "*"
+gunicorn = "*"
 
 [requires]
 python_version = "3.7"
