@@ -124,10 +124,38 @@ def add_interest(current_user):
 
         return jsonify({'message': 'This Interest already exist'}), 400
 
+
 # =========================== GET INTEREST ===================================
 @app.route('/api/interest', methods=['GET'])
 # @verify_token
 def get_all_interests():
+    interests = Interests.query.all()
+    output = []
+
+    for interest in interests:
+        interest_data = {'id': interest.interest_id, 'name': interest.interest_name}
+        output.append(interest_data)
+
+    return jsonify(output)
+
+
+@app.route('/api/interest', methods=['DELETE'])
+@verify_token
+def delete_interest(current_user):
+    if current_user.admin == 'No':
+        return jsonify({'message': 'You are not authorized to do this'}), 401
+
+    interest_id = request.args.get('interest_id')
+
+    interest = Interests.query.filter_by(interest_id=interest_id).first()
+
+    if not interest:
+        return jsonify({"message": 'Interest exist not'})
+
+    db.session.delete(interest)
+    db.session.commit()
+
+    return jsonify({'message': 'Interest deleted'})
 
 
 # Run Server
