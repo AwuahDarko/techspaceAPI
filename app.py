@@ -5,63 +5,129 @@ from flask_marshmallow import Marshmallow
 import os
 from flask_bcrypt import Bcrypt
 import jwt
+from functools import wraps
 
 # Init app
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
 
-app.config.from_object(os.environ['APP_SETTINGS'])
-# pg_user = "darko"
-# pg_pwd = "12345"
-# pg_port = "5432"
-# app.config['SECRET_KEY'] = '&&!^@(##)**09864345123'
-# app.config["SQLALCHEMY_DATABASE_URI"] = \
-#     "postgresql://{username}:{password}@localhost:{port}/techspace".format(username=pg_user, password=pg_pwd,
-#                                                                            port=pg_port)
+# app.config.from_object(os.environ['APP_SETTINGS'])
+pg_user = "darko"
+pg_pwd = "12345"
+pg_port = "5432"
+app.config['SECRET_KEY'] = '&&!^@(##)**09864345123'
+app.config["SQLALCHEMY_DATABASE_URI"] = \
+    "postgresql://{username}:{password}@localhost:{port}/techspace".format(username=pg_user, password=pg_pwd,
+                                                                           port=pg_port)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 from models import Users
+from models import Interests
 
 
-# pw_hash = bcrypt.generate_password_hash('hunter2')
-# bcrypt.check_password_hash(pw_hash, 'hunter2') # returns True
+# ==================== UTILS ================================================
+def verify_token(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        if 'x-access-token' in request.headers:
+            token = request.headers['x-access-token']
+
+        if not token:
+            return make_response('Forbidden', 403)
+
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'])
+            create_user = Users.query.filter_by(public_id=data['public_id']).first()
+        except Exception as e:
+            print(e)
+            return jsonify({'message': 'Token is invalid'}), 401
+        return f(create_user, *args, *kwargs)
+
+    return decorated
+
 
 # =================================ROUTES===============================================
-@app.route('/sign-up', methods=['POST'])
-def create_new_user():
-    data = request.get_json()
-
-    hashed_password = bcrypt.generate_password_hash(data['password']).decode('UTF-8')
-    new_user = Users(email=data['email'], password=hashed_password, public_id=str(uuid.uuid4()))
-    db.session.add(new_user)
-    db.session.commit()
-
-    return jsonify({'message': 'New User created'})
-
-
-@app.route('/', methods=['GET'])
+# ====================== WELCOME ========================================
+@app.route('/api', methods=['GET'])
 def send_welcome_message():
     return jsonify({'msg': 'Welcome, API Created By Darko Awuah Jackson'})
 
 
-@app.route('/login', methods=['POST'])
+# ===================== SIGN UP ==================================
+@app.route('/api/sign-up', methods=['POST'])
+def create_new_user():
+    try:
+        data = request.get_json()
+        if not data:
+            raise Exception("Bad request format, JSON required")
+    except Exception as e:
+        return make_response(str(e), 400)
+    else:
+        existing_user = Users.query.filter_by(email=data['email']).first()
+        if not existing_user:
+            hashed_password = bcrypt.generate_password_hash(data['password']).decode('UTF-8')
+            new_user = Users(email=data['email'], password=hashed_password, public_id=str(uuid.uuid4()))
+            db.session.add(new_user)
+            db.session.commit()
+            return jsonify({'message': 'New User created'})
+        else:
+            return make_response('Email is already registered', 400)
+
+
+# ========================= LOGIN ==================================
+@app.route('/api/login', methods=['POST'])
 def login():
-    auth = request.get_json()
+    try:
+        auth = request.get_json()
+        if not auth:
+            raise Exception("Bad request format, JSON required")
+    except Exception as e:
+        return make_response(str(e), 400)
+    else:
+        if not auth or not auth['email'] or not auth['password']:
+            return make_response('could not verify user', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
-    if not auth or not auth['email'] or not auth['password']:
-        make_response('could not verify user', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
-    user = Users.query.filter_by(email=auth['email']).first()
+        user = Users.query.filter_by(email=auth['email']).first()
 
-    if not user:
-        return make_response('Email is not registered', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
+        if not user:
+            return make_response('Email is not registered', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
-    if bcrypt.check_password_hash(user.password, auth['password']):
-        token = jwt.encode({'public_id': user.public_id}, app.config['SECRET_KEY'])
-        return jsonify({'token': token.decode('UTF-8')})
-        # return jsonify({'meg': "Done"})
+        if bcrypt.check_password_hash(user.password, auth['password']):
+            token = jwt.encode({'public_id': user.public_id}, app.config['SECRET_KEY'])
+            return jsonify({'token': token.decode('UTF-8')})
 
-    return make_response('Password not right', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
+        return make_response('Password not right', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
+
+
+# ===================== ADD INTEREST ============================================
+@app.route('/api/interest', methods=['POST'])
+@verify_token
+def add_interest(current_user):
+    if current_user.admin == 'No':
+        return jsonify({'message': 'You are not authorized to do this'}), 401
+    try:
+        data = request.get_json()
+        if not data:
+            raise Exception("Bad request format, JSON required")
+    except Exception as e:
+        return make_response(str(e), 400)
+    else:
+        existing_interest = Interests.query.filter_by(interest_name=data['interest']).first()
+
+        if not existing_interest:
+            new_interest = Interests(name=data['interest'])
+            db.session.add(new_interest)
+            db.session.commit()
+            return jsonify({'message': 'New Interest created'}), 200
+
+        return jsonify({'message': 'This Interest already exist'}), 400
+
+# =========================== GET INTEREST ===================================
+@app.route('/api/interest', methods=['GET'])
+# @verify_token
+def get_all_interests():
 
 
 # Run Server

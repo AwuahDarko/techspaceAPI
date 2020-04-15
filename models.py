@@ -2,8 +2,6 @@ from app import db
 
 
 class Users(db.Model):
-    # __tablename__ = 'users'
-
     user_id = db.Column(db.Integer, primary_key=True)
     public_id = db.Column(db.String(70), unique=True)
     email = db.Column(db.String(100), unique=True)
@@ -16,3 +14,9 @@ class Users(db.Model):
         self.password = password
 
 
+class Interests(db.Model):
+    interest_id = db.Column(db.Integer, primary_key=True)
+    interest_name = db.Column(db.String(45), unique=True)
+
+    def __init__(self, name):
+        self.interest_name = name
