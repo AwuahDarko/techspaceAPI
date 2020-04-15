@@ -125,7 +125,7 @@ def add_interest(current_user):
         return jsonify({'message': 'This Interest already exist'}), 400
 
 
-# =========================== GET INTEREST ===================================
+# =========================== INTEREST ===================================
 @app.route('/api/interest', methods=['GET'])
 # @verify_token
 def get_all_interests():
@@ -146,6 +146,8 @@ def delete_interest(current_user):
         return jsonify({'message': 'You are not authorized to do this'}), 401
 
     interest_id = request.args.get('interest_id')
+    if not interest_id:
+        return jsonify({'message': 'specify which interest'}), 400
 
     interest = Interests.query.filter_by(interest_id=interest_id).first()
 
@@ -156,6 +158,45 @@ def delete_interest(current_user):
     db.session.commit()
 
     return jsonify({'message': 'Interest deleted'})
+
+
+@app.route('/api/interest', methods=['PATCH'])
+@verify_token
+def update_interest(current_user):
+    if current_user.admin == 'No':
+        return jsonify({'message': 'You are not authorized to do this'}), 401
+
+    try:
+        data = request.get_json()
+        if not data or not data['interest_id'] or not data['interest_name']:
+            raise Exception("Bad request format, JSON required")
+    except Exception as e:
+        return make_response(str(e), 400)
+    else:
+        interest = Interests.query.filter_by(interest_id=data['interest_id']).first()
+
+        if interest is None:
+            return jsonify({'message': 'Interest exist not'}), 400
+
+        interest.interest_name = data['interest_name']
+        db.session.commit()
+
+        return jsonify({'message': 'Interest updated'})
+
+
+@app.route('/api/interest-single', methods=['GET'])
+def get_one_interest():
+    interest_id = request.args.get('interest_id')
+
+    if not interest_id:
+        return jsonify({'message': 'specify which interest'}), 400
+
+    interest = Interests.query.filter_by(interest_id=interest_id).first()
+    if interest is None:
+        return jsonify({'message': 'Interest exit not'}), 400
+    interest_data = {'id': interest.interest_id, 'name': interest.interest_name}
+
+    return jsonify(interest_data)
 
 
 # Run Server
